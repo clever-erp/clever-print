@@ -1,0 +1,46 @@
+appId: pe.clevererp.cleverprint
+productName: Clever Print
+copyright: © 2026 Clever ERP
+asar: true
+asarUnpack:
+  - "**/node_modules/{usb,@serialport,node-thermal-printer}/**"
+directories:
+  output: dist
+  buildResources: resources
+files:
+  - "out/**"
+  - "package.json"
+  - "!**/.cache/**"
+extraResources:
+  - from: "resources/tray-idle.png"
+    to: "tray-idle.png"
+  - from: "resources/tray-busy.png"
+    to: "tray-busy.png"
+  - from: "resources/tray-error.png"
+    to: "tray-error.png"
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: resources/icon.ico
+  publisherName: Clever ERP S.A.C.
+nsis:
+  oneClick: true
+  perMachine: false
+  allowToChangeInstallationDirectory: false
+  installerIcon: resources/icon.ico
+  uninstallerIcon: resources/icon.ico
+  shortcutName: Clever Print
+  runAfterFinish: true
+  deleteAppDataOnUninstall: false
+mac:
+  target: dmg
+  category: public.app-category.business
+linux:
+  target: AppImage
+  category: Utility
+publish:
+  provider: github
+  owner: clevererp
+  repo: clever-print
+  releaseType: release
