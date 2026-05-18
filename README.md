@@ -6,7 +6,7 @@ ESC/POS receipts to a thermal printer over USB or network.
 ## Install (end user)
 
 Download the latest `clever-print-Setup-x.y.z.exe` from
-[Releases](https://github.com/clevererp/clever-print/releases) and run it.
+[Releases](https://github.com/clever-erp/clever-print/releases) and run it.
 The installer is per-user (no admin prompt). After install:
 
 1. The tray icon appears.

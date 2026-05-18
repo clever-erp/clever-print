@@ -17,14 +17,24 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint src --ext ts,tsx",
+    "postinstall": "electron-builder install-app-deps",
     "dist": "pnpm build && electron-builder",
     "dist:win": "pnpm build && electron-builder --win",
     "publish": "pnpm build && electron-builder --publish always"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron",
+      "esbuild",
+      "usb",
+      "@thiagoelg/node-printer"
+    ]
+  },
   "dependencies": {
     "@hono/node-server": "^1.13.7",
+    "@thiagoelg/node-printer": "^0.6.2",
     "electron-log": "^5.2.0",
-    "electron-store": "^10.0.0",
+    "electron-store": "^8.2.0",
     "electron-updater": "^6.3.9",
     "hono": "^4.6.10",
     "node-thermal-printer": "^4.5.0",
