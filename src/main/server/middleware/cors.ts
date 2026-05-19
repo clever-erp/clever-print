@@ -1,11 +1,19 @@
 import { cors } from 'hono/cors';
 import { getAllowedOrigins } from '../../config/store';
 
+// Discovery + pairing endpoints must be reachable by any frontend origin —
+// the cashier hasn't paired yet, so we can't know their CloudFront URL.
+// These responses carry no secrets and the pairing handshake itself is
+// phishing-resistant (user reads a 6-digit code off their own tray window).
+const PUBLIC_PATHS = new Set(['/health', '/pair', '/pair/confirm']);
+
 export function corsMiddleware() {
   return cors({
-    origin: (origin) => {
+    origin: (origin, c) => {
+      if (PUBLIC_PATHS.has(c.req.path)) {
+        return origin ?? '*';
+      }
       if (!origin) return null;
-      // Always allow loopback access from the tray's own renderer (file:// origin or localhost dev).
       if (origin === 'null' || origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1')) {
         return origin;
       }
