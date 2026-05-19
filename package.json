@@ -1,6 +1,6 @@
 {
   "name": "clever-print",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Clever ERP — Local print agent. Receives receipt JSON over loopback HTTP and prints ESC/POS to a thermal printer.",
   "private": true,
   "main": "out/main/index.js",
