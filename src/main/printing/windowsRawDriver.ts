@@ -55,8 +55,10 @@ public class CleverPrintRaw {
 }
 "@
 
-$printerName = $args[0]
-$dataPath = $args[1]
+$printerName = $env:CP_PRINTER
+$dataPath = $env:CP_DATA
+if ([string]::IsNullOrEmpty($printerName)) { throw 'CP_PRINTER env var is empty' }
+if ([string]::IsNullOrEmpty($dataPath)) { throw 'CP_DATA env var is empty' }
 $bytes = [System.IO.File]::ReadAllBytes($dataPath)
 
 $h = [IntPtr]::Zero
@@ -96,8 +98,11 @@ async function sendRaw(printer: string, data: Buffer): Promise<void> {
     await new Promise<void>((resolve, reject) => {
       const ps = spawn(
         'powershell.exe',
-        ['-NoProfile', '-NonInteractive', '-Command', RAW_PRINT_PS, printer, file],
-        { windowsHide: true },
+        ['-NoProfile', '-NonInteractive', '-Command', RAW_PRINT_PS],
+        {
+          windowsHide: true,
+          env: { ...process.env, CP_PRINTER: printer, CP_DATA: file },
+        },
       );
       let stderr = '';
       ps.stderr.on('data', (d) => { stderr += d.toString(); });
@@ -120,7 +125,19 @@ async function sendRaw(printer: string, data: Buffer): Promise<void> {
 // expects `args.success(jobId)` or `args.error(err)` to be invoked later.
 // We mimic the @thiagoelg/node-printer API surface that node-thermal-printer
 // touches; everything else is optional.
+//
+// Surface used by node-thermal-printer/lib/interfaces/printer.js:
+//   - getPrinter(name) — read inside isPrinterConnected. Must return an
+//     object whose .status string does NOT contain 'NOT-AVAILABLE'.
+//   - getPrinters()    — read only when printer name is 'auto', which we
+//     never use (user explicitly picks one).
+//   - printDirect      — the actual raw-write path.
 export const windowsRawDriver = {
+  getPrinter(name: string): { name: string; status: string; attributes: string[] } {
+    // Always reports READY; the real failure mode is the PowerShell raw-write
+    // below, which surfaces a clear error if the printer is unreachable.
+    return { name, status: 'READY', attributes: [] };
+  },
   getPrinters(): unknown[] {
     return [];
   },
