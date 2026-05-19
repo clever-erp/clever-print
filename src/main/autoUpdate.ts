@@ -24,10 +24,33 @@ export function startAutoUpdate(): void {
   }, 6 * 60 * 60 * 1000);
 }
 
-export function checkForUpdatesManually(): Promise<unknown> {
+export interface ManualCheckResult {
+  available: boolean;
+  currentVersion: string;
+  latestVersion: string | null;
+  isDev: boolean;
+}
+
+// Return only structured-cloneable fields. autoUpdater.checkForUpdates()'s
+// raw result contains a CancellationToken class instance which can't pass
+// through Electron's IPC serialization → "object could not be cloned".
+export async function checkForUpdatesManually(): Promise<ManualCheckResult> {
+  const currentVersion = app.getVersion();
   if (!app.isPackaged) {
     logger.info('Skipping manual update check in dev');
-    return Promise.resolve(null);
+    return { available: false, currentVersion, latestVersion: null, isDev: true };
   }
-  return autoUpdater.checkForUpdates();
+  try {
+    const result = await autoUpdater.checkForUpdates();
+    const latestVersion = result?.updateInfo?.version ?? null;
+    return {
+      available: !!latestVersion && latestVersion !== currentVersion,
+      currentVersion,
+      latestVersion,
+      isDev: false,
+    };
+  } catch (err) {
+    logger.error('checkForUpdates failed', err);
+    return { available: false, currentVersion, latestVersion: null, isDev: false };
+  }
 }

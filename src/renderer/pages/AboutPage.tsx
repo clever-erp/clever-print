@@ -13,8 +13,23 @@ export function AboutPage() {
     setChecking(true);
     setMsg(null);
     try {
-      const r = await window.cleverPrint.checkUpdates();
-      setMsg(r ? 'Comprobación finalizada' : 'En modo desarrollo no se buscan actualizaciones');
+      const r = (await window.cleverPrint.checkUpdates()) as {
+        available: boolean;
+        currentVersion: string;
+        latestVersion: string | null;
+        isDev: boolean;
+      };
+      if (r.isDev) {
+        setMsg('En modo desarrollo no se buscan actualizaciones.');
+      } else if (r.available && r.latestVersion) {
+        setMsg(
+          `Nueva versión ${r.latestVersion} disponible. Se descargará en segundo plano y se instalará al cerrar Clever Print.`,
+        );
+      } else if (r.latestVersion) {
+        setMsg(`Ya estás en la última versión (${r.latestVersion}).`);
+      } else {
+        setMsg('No se pudo comprobar (revisa los registros).');
+      }
     } catch (err) {
       setMsg(`Error: ${(err as Error).message}`);
     } finally {
