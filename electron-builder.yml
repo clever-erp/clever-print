@@ -23,7 +23,12 @@ win:
     - target: nsis
       arch: [x64]
   icon: resources/icon.ico
-  publisherName: Clever ERP S.A.C.
+  # publisherName intentionally omitted until we have a code-signing cert.
+  # If set, electron-updater verifies that downloaded installers are signed
+  # by this publisher and refuses to install unsigned ones — which blocks
+  # auto-update for our current unsigned releases. Once we buy EV / Azure
+  # Trusted Signing, restore `publisherName: Clever ERP S.A.C.` AND wire the
+  # signing env vars (CSC_LINK + CSC_KEY_PASSWORD) in CI.
 nsis:
   oneClick: true
   perMachine: false
