@@ -4,7 +4,6 @@ copyright: © 2026 Clever ERP
 asar: true
 asarUnpack:
   - "**/node_modules/{usb,@serialport,node-thermal-printer}/**"
-  - "**/node_modules/@thiagoelg/**"
 directories:
   output: dist
   buildResources: resources

@@ -1,26 +1,11 @@
 import pkg from 'node-thermal-printer';
 import type { PrinterConfig } from '@shared/types';
+import { windowsRawDriver } from './windowsRawDriver';
 import { logger } from '../logger';
 
 const { printer: ThermalPrinter, types: PrinterTypes, CharacterSet } = pkg;
 
 export type ThermalPrinterLike = InstanceType<typeof ThermalPrinter>;
-
-// Windows spooler driver — only loaded when needed (and only on Windows where
-// the native binding compiled).
-let windowsDriver: unknown | null = null;
-function loadWindowsDriver(): unknown {
-  if (windowsDriver) return windowsDriver;
-  try {
-    // Use require so Vite's externalizeDepsPlugin keeps it external (native module).
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    windowsDriver = require('@thiagoelg/node-printer');
-    return windowsDriver;
-  } catch (err) {
-    logger.error('Failed to load @thiagoelg/node-printer — Windows printing will not work', err);
-    return null;
-  }
-}
 
 function profileToType(profile: PrinterConfig['profile']) {
   return profile === 'STAR' ? PrinterTypes.STAR : PrinterTypes.EPSON;
@@ -59,13 +44,7 @@ export function buildPrinter(cfg: PrinterConfig): ThermalPrinterLike {
     options: { timeout: 5000 },
   };
   if (cfg.connectionType === 'windows') {
-    const drv = loadWindowsDriver();
-    if (!drv) {
-      throw new Error(
-        '@thiagoelg/node-printer no se cargó. Ejecuta "pnpm install" para recompilar el módulo nativo, o cambia el tipo de conexión a Red / USB.',
-      );
-    }
-    opts.driver = drv;
+    opts.driver = windowsRawDriver;
   }
   const printer = new ThermalPrinter(opts);
   return printer;
