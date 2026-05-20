@@ -46,6 +46,26 @@ function wrap(s: string, width: number): string[] {
   return out;
 }
 
+// node-thermal-printer's tableCustom uses float cell widths and over-emits
+// by 1-2 chars, causing the printer to wrap the last column. Format the
+// three-column row ourselves so the total is exactly `width` chars.
+function formatItemRow(
+  col1: string,
+  col2: string,
+  col3: string,
+  width: number,
+): string {
+  const w1 = Math.floor(width * 0.55);
+  const w3 = Math.floor(width * 0.30);
+  const w2 = width - w1 - w3;
+  const c1 = col1.length > w1 ? col1.slice(0, w1) : col1.padEnd(w1, ' ');
+  const c3 = col3.length > w3 ? col3.slice(-w3) : col3.padStart(w3, ' ');
+  const inner = col2.length > w2 ? col2.slice(0, w2) : col2;
+  const leftPad = Math.floor((w2 - inner.length) / 2);
+  const c2 = ' '.repeat(leftPad) + inner + ' '.repeat(w2 - inner.length - leftPad);
+  return c1 + c2 + c3;
+}
+
 export interface RenderOptions {
   paperWidthMm: PaperWidthMm;
   locale?: string;
@@ -86,32 +106,34 @@ export async function renderReceipt(
   printer.drawLine();
 
   // Items
-  printer.tableCustom([
-    { text: 'Item', align: 'LEFT', width: 0.55, bold: true },
-    { text: 'Cant', align: 'CENTER', width: 0.15, bold: true },
-    { text: 'Total', align: 'RIGHT', width: 0.30, bold: true },
-  ]);
+  printer.bold(true);
+  printer.println(formatItemRow('Item', 'Cant', 'Total', width));
+  printer.bold(false);
   printer.drawLine();
 
   const items: OrderItem[] = order.items ?? [];
   if (items.length === 0) {
     printer.println('Sin items');
   } else {
+    const nameMax = Math.floor(width * 0.55);
     for (const it of items) {
       const lineTotal = it.quantity * Number(it.unit_price);
       const hasDiscount =
         it.original_unit_price != null && Number(it.original_unit_price) !== Number(it.unit_price);
-      printer.tableCustom([
-        { text: truncate(it.name, Math.floor(width * 0.55) - 1), align: 'LEFT', width: 0.55 },
-        { text: String(it.quantity), align: 'CENTER', width: 0.15 },
-        { text: money(lineTotal, currency), align: 'RIGHT', width: 0.30 },
-      ]);
+      printer.println(
+        formatItemRow(
+          truncate(it.name, nameMax),
+          String(it.quantity),
+          money(lineTotal, currency),
+          width,
+        ),
+      );
       let detail = `  ${it.quantity} x ${money(Number(it.unit_price), currency)}`;
       if (hasDiscount) {
         const pctOff = Math.round((1 - Number(it.unit_price) / Number(it.original_unit_price!)) * 100);
         detail += `  (antes ${money(Number(it.original_unit_price!), currency)}, -${pctOff}%)`;
       }
-      printer.println(detail);
+      for (const line of wrap(detail, width)) printer.println(line);
     }
   }
 
