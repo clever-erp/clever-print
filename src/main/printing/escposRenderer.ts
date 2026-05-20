@@ -77,7 +77,7 @@ export interface RenderOptions {
  * for `await printer.execute()` and error handling.
  *
  * Layout mirrors `ThermalReceipt` in
- * clever-front/src/components/OrderDashboard/OrderDashboard.tsx:110-223.
+ * clever-front/src/components/OrderDashboard/OrderDashboard.tsx:110-222.
  */
 export async function renderReceipt(
   printer: ThermalPrinterLike,
@@ -97,12 +97,15 @@ export async function renderReceipt(
   printer.bold(false);
   printer.drawLine();
 
-  // Meta
+  // Non-fiscal slip ("RECIBO DE PEDIDO"). When/if this becomes a SUNAT boleta
+  // under NRUS, add here: RUC, razón social, serie + correlativo, NRUS legend,
+  // and conditional DNI when total ≥ S/ 700. IGV must remain absent under NRUS.
+  // Customer phone is intentionally not printed (Ley N° 29733 — the courier
+  // handles the slip and shouldn't see the customer's number).
   printer.alignLeft();
   printer.leftRight('Pedido', `#${order.id}`);
   printer.leftRight('Fecha', formatDate(order.createdAt, locale));
   if (order.customerAlias) printer.leftRight('Cliente', truncate(order.customerAlias, width - 8));
-  printer.leftRight('Tel', order.customerPhone);
   printer.drawLine();
 
   // Items
