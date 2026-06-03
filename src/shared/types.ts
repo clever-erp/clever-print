@@ -30,6 +30,8 @@ export interface Order {
   status: OrderStatus;
   totalAmount: number;
   discount: number;
+  deliveryFee?: number;
+  deliveryDistanceKm?: number | null;
   notes?: string;
   createdAt: string;
   updatedAt?: string;

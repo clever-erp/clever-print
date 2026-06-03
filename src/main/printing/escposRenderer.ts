@@ -144,13 +144,18 @@ export async function renderReceipt(
 
   const subtotalNet = items.reduce((s, it) => s + it.quantity * Number(it.unit_price), 0);
   const discount = Number(order.discount ?? 0);
+  const deliveryFee = Number(order.deliveryFee ?? 0);
   if (discount > 0) {
     printer.leftRight('Subtotal', money(subtotalNet + discount, currency));
     printer.leftRight('Descuento', `-${money(discount, currency)}`);
   }
+  if (deliveryFee > 0) {
+    if (discount === 0) printer.leftRight('Subtotal', money(subtotalNet, currency));
+    printer.leftRight('Envio', money(deliveryFee, currency));
+  }
 
   printer.bold(true);
-  printer.leftRight('TOTAL', money(subtotalNet, currency));
+  printer.leftRight('TOTAL', money(subtotalNet + deliveryFee, currency));
   printer.bold(false);
 
   if (order.notes) {
