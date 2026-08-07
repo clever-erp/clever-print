@@ -22,6 +22,13 @@ export interface OrderItem {
   slug: string;
 }
 
+export interface OrderDiscount {
+  type: string; // 'referral' | 'cashback'
+  label: string;
+  amount: number;
+  pct?: number;
+}
+
 export interface Order {
   id: number;
   storeId: number;
@@ -36,6 +43,8 @@ export interface Order {
   createdAt: string;
   updatedAt?: string;
   items?: OrderItem[];
+  // Itemized order-level discounts (referral, redeemed cashback); NULL for legacy orders.
+  discounts?: OrderDiscount[] | null;
 }
 
 export type Locale = 'es-PE' | 'es-MX' | 'en-US';

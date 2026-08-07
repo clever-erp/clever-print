@@ -1,4 +1,4 @@
-import type { Order, OrderItem, PrintRequest, PaperWidthMm } from '@shared/types';
+import type { Order, OrderItem, OrderDiscount, PrintRequest, PaperWidthMm } from '@shared/types';
 import type { ThermalPrinterLike } from './printerFactory';
 
 const DEFAULT_LOCALE = 'es-PE';
@@ -150,12 +150,21 @@ export async function renderReceipt(
   const subtotalNet = items.reduce((s, it) => s + it.quantity * Number(it.unit_price), 0);
   const foodTotal = Number(order.totalAmount ?? subtotalNet);
   const deliveryFee = Number(order.deliveryFee ?? 0);
-  const orderDiscount = Math.max(0, Math.round((subtotalNet - foodTotal) * 100) / 100);
-  if (orderDiscount > 0 || deliveryFee > 0) {
+  // Prefer the itemized order-level list recorded on the order; fall back to a single
+  // derived "Descuento" line for legacy orders created before that column existed.
+  const derived = Math.max(0, Math.round((subtotalNet - foodTotal) * 100) / 100);
+  const discounts: OrderDiscount[] =
+    order.discounts && order.discounts.length > 0
+      ? order.discounts
+      : derived > 0
+        ? [{ type: 'legacy', label: 'Descuento', amount: derived }]
+        : [];
+  if (discounts.length > 0 || deliveryFee > 0) {
     printer.leftRight('Subtotal', money(subtotalNet, currency));
   }
-  if (orderDiscount > 0) {
-    printer.leftRight('Descuento', `-${money(orderDiscount, currency)}`);
+  for (const d of discounts) {
+    const label = d.pct ? `${d.label} (${d.pct}%)` : d.label;
+    printer.leftRight(label, `-${money(Number(d.amount), currency)}`);
   }
   if (deliveryFee > 0) {
     printer.leftRight('Envio', money(deliveryFee, currency));
