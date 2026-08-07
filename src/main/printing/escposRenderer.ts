@@ -142,20 +142,27 @@ export async function renderReceipt(
 
   printer.drawLine();
 
+  // Σ(unit_price × qty) already reflects per-item discounts (each line prints its
+  // own "antes …" strike above). totalAmount is authoritative and additionally has
+  // any ORDER-level reductions removed (referral discount, redeemed cashback) — these
+  // are NOT baked into unit_price, so we derive them as subtotalNet − totalAmount
+  // rather than trusting `order.discount` (which only covers item + referral, not cashback).
   const subtotalNet = items.reduce((s, it) => s + it.quantity * Number(it.unit_price), 0);
-  const discount = Number(order.discount ?? 0);
+  const foodTotal = Number(order.totalAmount ?? subtotalNet);
   const deliveryFee = Number(order.deliveryFee ?? 0);
-  if (discount > 0) {
-    printer.leftRight('Subtotal', money(subtotalNet + discount, currency));
-    printer.leftRight('Descuento', `-${money(discount, currency)}`);
+  const orderDiscount = Math.max(0, Math.round((subtotalNet - foodTotal) * 100) / 100);
+  if (orderDiscount > 0 || deliveryFee > 0) {
+    printer.leftRight('Subtotal', money(subtotalNet, currency));
+  }
+  if (orderDiscount > 0) {
+    printer.leftRight('Descuento', `-${money(orderDiscount, currency)}`);
   }
   if (deliveryFee > 0) {
-    if (discount === 0) printer.leftRight('Subtotal', money(subtotalNet, currency));
     printer.leftRight('Envio', money(deliveryFee, currency));
   }
 
   printer.bold(true);
-  printer.leftRight('TOTAL', money(subtotalNet + deliveryFee, currency));
+  printer.leftRight('TOTAL', money(foodTotal + deliveryFee, currency));
   printer.bold(false);
 
   if (order.notes) {
