@@ -34,3 +34,17 @@ electron-store on agent side (origin added to CORS allowlist).
 
 ## Print job shape
 Mirrors `Order` from `clever-front/src/types/index.ts`. See `src/shared/types.ts`.
+
+## Release
+`.github/workflows/release.yml` builds the Windows installer on `v*` tags (or a manual dispatch). It does **not** run on push to main. Releases are published at `clever-erp/clever-print/releases`, which is where the front's download link points.
+
+## Receipt rules (merchant is under NRUS)
+- The ticket (`src/main/printing/escposRenderer.ts`) is a non-fiscal **"RECIBO DE PEDIDO"**, not a SUNAT boleta. It intentionally has no RUC, serie/correlativo, NRUS legend or DNI field. A comment block marks where boleta fields could be added later.
+- **No IGV line.** NRUS doesn't charge IGV.
+- **No customer phone** on the ticket (Ley 29733: the courier handles the slip). Staff can see the phone in the dashboard.
+- If asked to "make it a real boleta", first point out that this means SUNAT electronic issuance, with series and correlative-number authorization. It is not just a formatting change.
+
+## Gotchas
+- **Don't use `node-thermal-printer`'s `tableCustom`.** Its float cell widths overflow by 1–2 characters and wrap the last column. Use the local `formatItemRow(col1, col2, col3, width)` helper in `escposRenderer.ts`. `leftRight` is fine.
+- **Native modules:** use the PowerShell P/Invoke driver `src/main/printing/windowsRawDriver.ts` for the Windows raw spooler. Don't bring back `@thiagoelg/node-printer`, which breaks on CI's node-gyp 11. A new native dependency must be maintained (a commit in the last 12 months) and must ship prebuilds for Node ≥22 and Electron ≥31. Otherwise, prefer shelling out from plain JS.
+- On Windows dev machines with Python 3.12, if a node-gyp ≤9 rebuild fails with `No module named 'distutils'`, run `pip install setuptools`. Don't pin @electron/rebuild or override node-gyp.
