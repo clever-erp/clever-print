@@ -16,8 +16,11 @@ export type OrderStatus =
 export interface OrderItem {
   id: number;
   quantity: number;
+  // Per unit; both include packaging_price.
   unit_price: number;
   original_unit_price?: number | null;
+  // Per-unit packaging included in this line (absent on older dashboards/orders).
+  packaging_price?: number | string | null;
   name: string;
   slug: string;
 }

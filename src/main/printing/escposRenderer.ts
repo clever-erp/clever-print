@@ -66,6 +66,32 @@ function formatItemRow(
   return c1 + c2 + c3;
 }
 
+const r2 = (n: number) => Math.round(n * 100) / 100;
+
+/**
+ * unit_price / original_unit_price include packaging, and the item discount applies
+ * to price + packaging, so product unit = (original ?? unit) − packaging_price.
+ * Mirrors clever-front/src/lib/receiptLines.ts.
+ */
+export function lineBreakdown(it: OrderItem) {
+  const qty = Number(it.quantity);
+  const unit = Number(it.unit_price);
+  const original = it.original_unit_price != null ? Number(it.original_unit_price) : unit;
+  const packagingUnit = Number(it.packaging_price ?? 0) || 0;
+  const productUnit = r2(original - packagingUnit);
+  const discountTotal = Math.max(0, r2((original - unit) * qty));
+  return {
+    qty,
+    productUnit,
+    productTotal: r2(productUnit * qty),
+    packagingUnit,
+    packagingTotal: r2(packagingUnit * qty),
+    discountTotal,
+    discountPct: discountTotal > 0 && original > 0 ? Math.round((1 - unit / original) * 100) : 0,
+    lineTotal: r2(unit * qty),
+  };
+}
+
 export interface RenderOptions {
   paperWidthMm: PaperWidthMm;
   locale?: string;
@@ -120,34 +146,42 @@ export async function renderReceipt(
   } else {
     const nameMax = Math.floor(width * 0.55);
     for (const it of items) {
-      const lineTotal = it.quantity * Number(it.unit_price);
-      const hasDiscount =
-        it.original_unit_price != null && Number(it.original_unit_price) !== Number(it.unit_price);
+      const l = lineBreakdown(it);
       printer.println(
         formatItemRow(
           truncate(it.name, nameMax),
-          String(it.quantity),
-          money(lineTotal, currency),
+          String(l.qty),
+          money(l.lineTotal, currency),
           width,
         ),
       );
-      let detail = `  ${it.quantity} x ${money(Number(it.unit_price), currency)}`;
-      if (hasDiscount) {
-        const pctOff = Math.round((1 - Number(it.unit_price) / Number(it.original_unit_price!)) * 100);
-        detail += `  (antes ${money(Number(it.original_unit_price!), currency)}, -${pctOff}%)`;
+      const detail = `  ${l.qty} x ${money(l.productUnit, currency)}`;
+      if (!l.packagingTotal && !l.discountTotal) {
+        for (const line of wrap(detail, width)) printer.println(line);
+        continue;
       }
-      for (const line of wrap(detail, width)) printer.println(line);
+      // Product, packaging and item discount (on price + packaging) each on their own line.
+      printer.leftRight(detail, money(l.productTotal, currency));
+      if (l.packagingTotal > 0) {
+        const label = l.qty > 1
+          ? `  + Packaging (${l.qty} x ${money(l.packagingUnit, currency)})`
+          : '  + Packaging';
+        printer.leftRight(label, money(l.packagingTotal, currency));
+      }
+      if (l.discountTotal > 0) {
+        printer.leftRight(`  - Descuento ${l.discountPct}%`, `-${money(l.discountTotal, currency)}`);
+      }
     }
   }
 
   printer.drawLine();
 
-  // Σ(unit_price × qty) already reflects per-item discounts (each line prints its
-  // own "antes …" strike above). totalAmount is authoritative and additionally has
+  // Σ(unit_price × qty) already reflects packaging and per-item discounts (each line
+  // prints its own sub-lines above). totalAmount is authoritative and additionally has
   // any ORDER-level reductions removed (referral discount, redeemed cashback) — these
   // are NOT baked into unit_price, so we derive them as subtotalNet − totalAmount
   // rather than trusting `order.discount` (which only covers item + referral, not cashback).
-  const subtotalNet = items.reduce((s, it) => s + it.quantity * Number(it.unit_price), 0);
+  const subtotalNet = r2(items.reduce((s, it) => s + lineBreakdown(it).lineTotal, 0));
   const foodTotal = Number(order.totalAmount ?? subtotalNet);
   const deliveryFee = Number(order.deliveryFee ?? 0);
   // Prefer the itemized order-level list recorded on the order; fall back to a single

@@ -41,6 +41,7 @@ Mirrors `Order` from `clever-front/src/types/index.ts`. See `src/shared/types.ts
 ## Receipt rules (merchant is under NRUS)
 - The ticket (`src/main/printing/escposRenderer.ts`) is a non-fiscal **"RECIBO DE PEDIDO"**, not a SUNAT boleta. It intentionally has no RUC, serie/correlativo, NRUS legend or DNI field. A comment block marks where boleta fields could be added later.
 - **No IGV line.** NRUS doesn't charge IGV.
+- **Per-line breakdown.** `unit_price` includes `packaging_price`, and the item discount applies to price + packaging. Each line prints the product (`qty x unit`), then `+ Packaging` and `- Descuento N%` sub-lines. Order-level discounts and Envío go after the Subtotal. `lineBreakdown` mirrors `clever-front/src/lib/receiptLines.ts`. Older dashboards send no `packaging_price`, which is read as 0.
 - **No customer phone** on the ticket (Ley 29733: the courier handles the slip). Staff can see the phone in the dashboard.
 - If asked to "make it a real boleta", first point out that this means SUNAT electronic issuance, with series and correlative-number authorization. It is not just a formatting change.
 
