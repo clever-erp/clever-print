@@ -63,6 +63,7 @@ type PrintRequest = {
   store: { name: string; tiktokUrl?: string | null };
   locale?: 'es-PE'|'es-MX'|'en-US';
   currency?: 'PEN'|'MXN'|'USD';
+  invoice?: InvoiceDocument; // v0.2.0+: SUNAT boleta, printed instead of the order slip (src/shared/types.ts)
 };
 ```
 

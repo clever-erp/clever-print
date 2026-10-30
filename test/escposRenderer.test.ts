@@ -78,3 +78,67 @@ describe('renderReceipt', () => {
     expect(out).toContain('TOTAL | S/96.56');
   });
 });
+
+describe('renderReceipt with a SUNAT boleta', () => {
+  const capture = () => {
+    const out: string[] = [];
+    const fake: any = new Proxy({}, {
+      get: (_t, prop) => (...args: unknown[]) => {
+        if (prop === 'println') out.push(String(args[0]));
+        if (prop === 'leftRight') out.push(`${args[0]} | ${args[1]}`);
+        if (prop === 'printQR') out.push(`QR ${args[0]}`);
+      },
+    });
+    return { out, fake };
+  };
+  const invoice = {
+    test: true,
+    fullNumber: 'B001-00000002',
+    issuedAt: '2026-10-26T13:42:00-05:00',
+    customer: { docType: '1', docNumber: '12345678', name: 'JUAN PEREZ' },
+    lines: [
+      { description: 'HAMBURGUESA CLASICA', quantity: 2, unitPrice: 19, valueAmount: 32.2, igv: 5.8, igvRate: 18 },
+      { description: 'SERVICIO DE DELIVERY', quantity: 1, unitPrice: 5, valueAmount: 4.24, igv: 0.76, igvRate: 18 },
+    ],
+    totals: { taxed: 36.44, exonerated: 0, unaffected: 0, igv: 6.56, total: 43 },
+    legend: 'SON CUARENTA Y TRES CON 00/100 SOLES',
+    issuer: { ruc: '10467793549', legalName: 'JUAN PEREZ', tradeName: 'LA GULA', regime: 'RG',
+      address: { line: 'AV. PRUEBA 123', district: 'AREQUIPA', province: 'AREQUIPA', department: 'AREQUIPA' } },
+    hash: '8EGpyHmggM1EEikNAEIm2YrakBY=',
+    qr: '10467793549|03|B001|2|6.56|43.00|2026-10-26|1|12345678|8EGpyHmggM1EEikNAEIm2YrakBY=',
+  };
+
+  it('prints the fiscal template instead of the order slip', async () => {
+    const { out, fake } = capture();
+    await renderReceipt(fake, { order: ORDER_WITH_PACKAGING, store: { name: 'La Gula' }, invoice }, { paperWidthMm: 80 });
+    expect(out).not.toContain('RECIBO DE PEDIDO');
+    expect(out).toContain('RUC 10467793549');
+    expect(out).toContain('PRUEBA - SIN VALOR TRIBUTARIO');
+    expect(out).toContain('BOLETA DE VENTA ELECTRONICA');
+    expect(out).toContain('B001-00000002');
+    expect(out).toContain('Fecha | 26/10/2026 13:42');
+    expect(out).toContain('Cliente | DNI 12345678');
+    expect(out).toContain('  2 x S/19.00 | S/38.00');
+    expect(out).toContain('OP. GRAVADA | S/36.44');
+    expect(out).toContain('IGV (18%) | S/6.56');
+    expect(out).toContain('TOTAL | S/43.00');
+    expect(out).toContain(`QR ${invoice.qr}`);
+    expect(out.some((l) => l.includes('51999'))).toBe(false);
+  });
+
+  it('NRUS: no IGV lines, legend, and real receipts have no PRUEBA banner', async () => {
+    const { out, fake } = capture();
+    const nrus = {
+      ...invoice, test: false,
+      customer: { docType: '0', docNumber: '-', name: 'CLIENTES VARIOS' },
+      lines: [{ description: 'PAPAS', quantity: 1, unitPrice: 15, valueAmount: 15, igv: 0, igvRate: 0 }],
+      totals: { taxed: 0, exonerated: 15, unaffected: 0, igv: 0, total: 15 },
+      issuer: { ...invoice.issuer, regime: 'NRUS' },
+    };
+    await renderReceipt(fake, { order: ORDER_WITH_PACKAGING, store: { name: 'La Gula' }, invoice: nrus }, { paperWidthMm: 58 });
+    expect(out).not.toContain('PRUEBA - SIN VALOR TRIBUTARIO');
+    expect(out.some((l) => l.startsWith('IGV'))).toBe(false);
+    expect(out).toContain('Contribuyente del Nuevo RUS');
+    expect(out).toContain('Cliente | CLIENTES VARIOS');
+  });
+});

@@ -39,11 +39,18 @@ Mirrors `Order` from `clever-front/src/types/index.ts`. See `src/shared/types.ts
 `.github/workflows/release.yml` builds the Windows installer on `v*` tags (or a manual dispatch). It does **not** run on push to main. Releases are published at `clever-erp/clever-print/releases`, which is where the front's download link points.
 
 ## Receipt rules (merchant is under NRUS)
-- The ticket (`src/main/printing/escposRenderer.ts`) is a non-fiscal **"RECIBO DE PEDIDO"**, not a SUNAT boleta. It intentionally has no RUC, serie/correlativo, NRUS legend or DNI field. A comment block marks where boleta fields could be added later.
-- **No IGV line.** NRUS doesn't charge IGV.
+- The default ticket (`src/main/printing/escposRenderer.ts`) is a non-fiscal **"RECIBO DE PEDIDO"**. It has no RUC, series/number, NRUS legend or DNI.
+- **SUNAT boleta (v0.2.0+):** when `/print` carries `invoice`, `boletaRenderer.ts` prints the fiscal template instead. It includes:
+  - The issuer's RUC and address.
+  - "BOLETA DE VENTA ELECTRONICA" and the series-number.
+  - The customer document, the lines and the totals (OP. GRAVADA / IGV only if there is IGV).
+  - The amount in words, the NRUS legend, the SUNAT QR, the hash, and "Representación impresa…".
+  - "PRUEBA - SIN VALOR TRIBUTARIO" when `invoice.test` (beta).
+
+  The agent recalculates nothing: clever-back issues and signs the boleta (see `../clever-back/docs/billing-sunat.md`). The front only sends `invoice` to agents ≥ 0.2.0, so a release is required before stores can print boletas from the agent; older agents fall back to the browser print.
+- **No IGV line on the order slip.** On the boleta, IGV lines appear only when the store's regime charges IGV.
 - **Per-line breakdown.** `unit_price` includes `packaging_price`, and the item discount applies to price + packaging. Each line prints the product (`qty x unit`), then `+ Packaging` and `- Descuento N%` sub-lines. Order-level discounts and Envío go after the Subtotal. `lineBreakdown` mirrors `clever-front/src/lib/receiptLines.ts`. Older dashboards send no `packaging_price`, which is read as 0.
 - **No customer phone** on the ticket (Ley 29733: the courier handles the slip). Staff can see the phone in the dashboard.
-- If asked to "make it a real boleta", first point out that this means SUNAT electronic issuance, with series and correlative-number authorization. It is not just a formatting change.
 
 ## Gotchas
 - **Don't use `node-thermal-printer`'s `tableCustom`.** Its float cell widths overflow by 1–2 characters and wrap the last column. Use the local `formatItemRow(col1, col2, col3, width)` helper in `escposRenderer.ts`. `leftRight` is fine.

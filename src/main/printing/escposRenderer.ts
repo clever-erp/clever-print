@@ -1,5 +1,6 @@
 import type { Order, OrderItem, OrderDiscount, PrintRequest, PaperWidthMm } from '@shared/types';
 import type { ThermalPrinterLike } from './printerFactory';
+import { renderBoleta } from './boletaRenderer';
 
 const DEFAULT_LOCALE = 'es-PE';
 const DEFAULT_CURRENCY = 'PEN';
@@ -115,6 +116,14 @@ export async function renderReceipt(
   const currency = req.currency ?? DEFAULT_CURRENCY;
   const width = opts.paperWidthMm === 80 ? 48 : 32;
 
+  // SUNAT boleta (issued by clever-back). Same cut / cash drawer handling as the order slip.
+  if (req.invoice) {
+    await renderBoleta(printer, req.invoice, width);
+    if (req.cutPaper !== false) printer.cut();
+    if (req.openCashDrawer) printer.openCashDrawer();
+    return;
+  }
+
   // Header
   printer.alignCenter();
   printer.bold(true);
@@ -123,9 +132,8 @@ export async function renderReceipt(
   printer.bold(false);
   printer.drawLine();
 
-  // Non-fiscal slip ("RECIBO DE PEDIDO"). When/if this becomes a SUNAT boleta
-  // under NRUS, add here: RUC, razón social, serie + correlativo, NRUS legend,
-  // and conditional DNI when total ≥ S/ 700. IGV must remain absent under NRUS.
+  // Non-fiscal slip ("RECIBO DE PEDIDO"). The SUNAT boleta is a separate template
+  // (boletaRenderer.ts), printed when the request carries `invoice`.
   // Customer phone is intentionally not printed (Ley N° 29733 — the courier
   // handles the slip and shouldn't see the customer's number).
   printer.alignLeft();

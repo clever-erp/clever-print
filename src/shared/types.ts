@@ -53,6 +53,30 @@ export interface Order {
 export type Locale = 'es-PE' | 'es-MX' | 'en-US';
 export type Currency = 'PEN' | 'MXN' | 'USD';
 
+/**
+ * SUNAT electronic boleta, already issued and signed by clever-back + clever-sunat.
+ * Mirrors `BillingDocument` in clever-front/src/services/billing.ts (the fields the ticket needs).
+ * The agent only prints it: every amount comes computed, nothing is recalculated here.
+ */
+export interface InvoiceDocument {
+  test: boolean; // beta: prints "PRUEBA – SIN VALOR TRIBUTARIO"
+  fullNumber: string; // B001-00000124
+  issuedAt: string; // ISO with -05:00
+  customer: { docType: string; docNumber: string; name: string };
+  lines: Array<{ description: string; quantity: number; unitPrice: number; valueAmount: number; igv: number; igvRate: number }>;
+  totals: { taxed: number; exonerated: number; unaffected: number; igv: number; total: number };
+  legend: string;
+  issuer: {
+    ruc: string;
+    legalName: string;
+    tradeName: string;
+    regime: string | null;
+    address: { line: string; district: string; province: string; department: string };
+  };
+  hash: string | null;
+  qr: string | null;
+}
+
 export interface PrintRequest {
   jobId?: string;
   copies?: number;
@@ -65,6 +89,8 @@ export interface PrintRequest {
   };
   locale?: Locale;
   currency?: Currency;
+  /** When present, prints the SUNAT boleta instead of the non-fiscal "RECIBO DE PEDIDO" (v0.2.0+). */
+  invoice?: InvoiceDocument;
 }
 
 export interface PrintResponse {
